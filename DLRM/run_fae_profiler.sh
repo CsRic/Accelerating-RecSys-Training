@@ -5,15 +5,15 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-tbsm_py="python ./profiling/tbsm_fae_profiler.py "
+tbsm_py="python dlrm_input_profiler.py"
 
 $tbsm_py  --arch-sparse-feature-size=16 \
-			--arch-mlp-top="15-15" \
-			--arch-mlp-bot="1-16" \
+			--arch-mlp-top="13-512-256-64-16" \
+			--arch-mlp-bot="512-256-1" \
 			--data-generation=dataset \
-			--data-set=alibaba \
-			--raw-data-file=./input/taobao_train.txt \
-			--processed-data-file=./input/taobao_train_t20.npz \
-			--mini-batch-size=256 \
+			--data-set=kaggle \
+			--raw-data-file=/data/scratch/criteo_accelerate/input/train.txt \
+			--processed-data-file=/data/scratch/criteo_accelerate/input/kaggleAdDisplayChallenge_processed.npz \
+			--mini-batch-size=1024 \
 			--hot-emb-gpu-mem=268435456 \
 			--ip-sampling-rate=5

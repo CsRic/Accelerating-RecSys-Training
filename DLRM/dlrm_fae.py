@@ -337,12 +337,13 @@ class DLRM_Net(nn.Module):
 		for k in range(len(lS_i)):
 			sparse_index_group_batch = lS_i[k]
 			sparse_offset_group_batch = lS_o[k]
-
+			
 			# embedding lookup
 			# We are using EmbeddingBag, which implicitly uses sum operator.
 			# The embeddings are represented as tall matrices, with sum
 			# happening vertically across 0 axis, resulting in a row vector
 			E = emb_l[0]
+			sparse_index_group_batch = sparse_index_group_batch.clamp(0,4194303)
 			V = E(sparse_index_group_batch, sparse_offset_group_batch)
 
 			ly.append(V)
@@ -488,11 +489,12 @@ class DLRM_Net(nn.Module):
 
 		lS_i = scatter(lS_i, device_ids, dim=1)
 		lS_o = scatter(lS_o, device_ids, dim=1)
+  
 		lS_o_t = lS_o[0]
 		lS_o = []
 		for i in range(ndevices):
 			lS_o.append(lS_o_t.to("cuda:"+str(i)))
-
+  
 		### compute results in parallel ###
 		# bottom mlp
 		# WARNING: Note that the self.bot_l is a list of bottom mlp modules
@@ -507,7 +509,7 @@ class DLRM_Net(nn.Module):
 		
 		# embeddings
 		ly = []
-		
+  
 		for i in range(ndevices):
 			y = self.apply_hot_emb(lS_o[i], lS_i[i], self.hot_emb_l_replicas[i])
 			ly.append(y)
@@ -569,7 +571,10 @@ if __name__ == "__main__":
 	### import packages ###
 	import sys
 	import argparse
-
+	import os
+	os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3" 
+	os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+ 
 	### parse arguments ###
 	parser = argparse.ArgumentParser(
 		description="Train Deep Learning Recommendation Model (DLRM)"
@@ -1098,7 +1103,7 @@ if __name__ == "__main__":
 
 				begin_forward = time_wrap(use_gpu)
 				# forward pass
-				
+				print("cold forward ...")
 				Z = dlrm_wrap(X, lS_o, lS_i, use_gpu, device, data)
 
 				end_forward = time_wrap(use_gpu)
@@ -1112,7 +1117,7 @@ if __name__ == "__main__":
 				T = T.detach().cpu().numpy()  # numpy array
 				mbs = T.shape[0]  # = args.mini_batch_size except maybe for last
 				A = np.sum((np.round(S, 0) == T).astype(np.uint8))
-
+				print("done")
 				if not args.inference_only:
 					# scaled error gradient propagation
 					# (where we do not accumulate gradients across mini-batches)
@@ -1149,7 +1154,9 @@ if __name__ == "__main__":
 				backward_time += end_backward - end_forward
 				optimizer_time += end_optimizing - end_backward
 				scheduler_time += end_scheduling - end_optimizing
-
+    
+				print("---")
+    
 				#should_print = ((j + 1) % args.print_freq == 0) or (j + 1 == nbatches)
 				should_test = (
 					(args.test_freq > 0)
@@ -1378,7 +1385,7 @@ if __name__ == "__main__":
 							  + str(args.mlperf_auc_threshold)
 							  + " reached, stop training")
 						break
-
+ 
 			# At the end of train_normal_ld last iteration start training with train_hot_ld data 
 			# ======================= Updating the hot_emb_l with emb_l =====================
 			
@@ -1388,8 +1395,9 @@ if __name__ == "__main__":
 				for _, emb_dict in enumerate(hot_emb_dict):
 					for _, (emb_no, emb_row) in enumerate(emb_dict):
 						hot_row = emb_dict[(emb_no, emb_row)]
+						#print(hot_row)
 						data = dlrm.emb_l[emb_no].weight.data[emb_row]
-						dlrm.hot_emb_l[0].weight.data[hot_row] = data
+						dlrm.hot_emb_l[0].weight.data[int(hot_row)] = data
 
 				end_emb_update = time_wrap(use_gpu)
 
@@ -1425,7 +1433,7 @@ if __name__ == "__main__":
 
 					begin_forward = time_wrap(use_gpu)
 					# forward pass
-				
+					print("hot forward")
 					Z = dlrm_wrap(X, lS_o, lS_i, use_gpu, device, data)
 
 					end_forward = time_wrap(use_gpu)
@@ -1521,6 +1529,7 @@ if __name__ == "__main__":
 						optimizer_time = 0
 						scheduler_time = 0
 
+					print("---")
 					# testing
 					if should_test and not args.inference_only:
 						# don't measure training iter time in a test iteration
@@ -1536,7 +1545,7 @@ if __name__ == "__main__":
 							for _, (emb_no, emb_row) in enumerate(emb_dict):
 								hot_row = emb_dict[(emb_no, emb_row)]
 								data = torch.tensor(hot_emb[hot_row])
-								dlrm.emb_l[emb_no].weight.data[emb_row] = data
+								dlrm.emb_l[emb_no].weight.data[int(emb_row)] = data
 
 						end_emb_update = time_wrap(use_gpu)
 
@@ -1723,7 +1732,7 @@ if __name__ == "__main__":
 							
 				for _, emb_dict in enumerate(hot_emb_dict):
 					for _, (emb_no, emb_row) in enumerate(emb_dict):
-						hot_row = emb_dict[(emb_no, emb_row)]
+						hot_row = emb_dict[(emb_no, emb_row)].type(torch.int)
 						data = torch.tensor(hot_emb[hot_row])
 						dlrm.emb_l[emb_no].weight.data[emb_row] = data
 

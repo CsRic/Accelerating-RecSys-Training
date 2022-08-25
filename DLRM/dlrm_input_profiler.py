@@ -370,9 +370,9 @@ if __name__ == "__main__":
 	hot_emb_dict = np.array(hot_emb_dict, dtype = object)
 	
 	if args.data_set == "kaggle":
-		np.savez_compressed('./input/kaggle_hot_cold/train_hot.npz', train_hot)
-		np.savez_compressed('./input/kaggle_hot_cold/train_normal.npz', train_normal)
-		np.savez_compressed('./input/kaggle_hot_cold/hot_emb_dict.npz', hot_emb_dict)
+		np.savez_compressed('/data/scratch/criteo_accelerate/kaggle_hot_cold/train_hot.npz', train_hot)
+		np.savez_compressed('/data/scratch/criteo_accelerate/kaggle_hot_cold/train_normal.npz', train_normal)
+		np.savez_compressed('/data/scratch/criteo_accelerate/kaggle_hot_cold/hot_emb_dict.npz', hot_emb_dict)
 	elif args.data_set == "terabyte":
 		np.savez_compressed('./input/terabyte_hot_cold/train_hot.npz', train_hot)
 		np.savez_compressed('./input/terabyte_hot_cold/train_normal.npz', train_normal)
